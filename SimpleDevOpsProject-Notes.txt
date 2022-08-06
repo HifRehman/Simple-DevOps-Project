@@ -1,0 +1,479 @@
+1. Setup Jenkin Server
+
+- setup a linux EC2 instance
+- Install Java
+- Install Jenkins
+- Start Jenkins
+- Access Web UI on port 8080
+
+Jenkins is a self-contained, open source automation server which can be used to automate all sorts of tasks related to building,
+testing, and delivering or deploying software.
+
+https://pkg.jenkins.io/redhat-stable/
+
+To use this repository, run the following command:
+
+
+sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+
+yum install fontconfig java-11-openjdk
+yum install jenkins
+
+systemctl start jenkins
+/var/lib/jenkins/secrets/initialAdminPassword
+1413bd2a2b5543d09b9443b3a83dc7a7
+ip:8080
+as of now no plugins installed.
+
+First Job:
+freestyle project - helloWorld
+
+Build option 
+execute as 
+
+Now git integration with Jenkins
+
+yum install git
+
+git --version
+
+Next thing we need to install github plugins to GUI(jenkins)
+
+Dashboard -> Manage Jenkins -> Manage Plugins -> Available -> search (github) -> install without restart 
+Now configure
+
+Dashboard -> Manage Jenkins -> Global Tool Configuration 
+Git
+Name : Git
+Path to git executor 
+git -> by default it takes or can use below full path
+Apply and Save
+
+[root@kells-server ~]# whereis git
+git: /usr/bin/git /usr/share/man/man1/git.1.gz
+[root@kells-server ~]#
+
+whenevr jenkins do any activity it does under workspace.
+
+Integrated github with jenkins,,,
+
+create one job with jenkins -> PullCodeFromJenkins -> Freestyle project -> provide the github repo link which is forked to your account.
+
+build the job and check in /var/lib/jenkins/workspace
+
+Integrate Maven with Jenkins:
+----------------------------
+
+- Setup maven on jenkins server
+- Setup env variable -> java based 
+   - JAVA_HOME, M2, M2_HOME
+- Install Maven Plugin 
+- Configure Maven and Java
+
+search -> Maven installation on linux
+Download Maven package in /opt dir wget link
+
+extract :- tar -xvzf apache-maven-3.8.6-bin.tar.gz
+mv apache-maven-3.8.6 maven
+
+[root@kells-server bin]# pwd
+/opt/maven/bin
+[root@kells-server bin]# ./mvn -v
+
+setup the env variable
+
+find / -name jvm
+find / -name java-11*
+
+cd ~
+vim .bash_profile
+
+M2_HOME=/opt/maven
+M2=/opt/maven/bin
+JAVE_HOME=/usr/lib/jvm/java-11-openjdk-11.0.15.0.9-2.el7_9.x86_64
+
+PATH=$PATH:$HOME/bin:$JAVE_HOME:$M2_HOME:$M2
+
+:wq!
+
+source .bash_profile
+
+# mvn -v
+
+Now Install Plugins to Jenkins server
+
+Dashboard -> Manage Jenkins -> Manage Plugins -> Available -> search (maven) -> install without restart 
+
+Dashboard -> Manage Jenkins -> Global Tool Configuration 
+
+here, we need to tell where our JDK and Maven is.
+
+Add-JDK
+Name - Java11
+Java-Home
+/usr/lib/jvm/java-11-openjdk-11.0.15.0.9-2.el7_9.x86_64
+
+Add-Maven
+Maven-3.8
+
+Maven_Home
+/opt/maven
+
+Apply & Save
+
+Now need to create build Job:
+
++ New Item -> FirstMavenProject -> choose Maven 
+
+Goals and options -> Search for Maven Lifecycle -> clean install
+
+location :- /var/lib/jenkins/workspace/FirstMavenProject-1
+
+
+Deploy Artifacts on Tomcat Server:
+----------------------------------
+
+git -> github -> jenkins -> tomcat server
+
+Setup Tomcat server.
+-------------------
+
+Setup a linux instance
+Install Java
+Configure Tomcat 
+Start tomcat server
+Access web UI on port 8080.
+
+create a new VM
+google -> tomcat download
+
+cd /opt/
+wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.65/bin/apache-tomcat-9.0.65.tar.gz
+tar -xvzf apache-tomcat-9.0.65.tar.gz
+mv apache-tomcat-9.0.65 tomcat
+cd tomcat
+cd bin/
+ll
+./startup.sh
+now check on your browser ip:8080
+
+cd /opt/tomcat/
+find / -name context.xml
+
+vim /opt/tomcat/webapps/host-manager/META-INF/context.xml
+
+now we need to commented out allow=127\. ***** line
+for commenting in xml file.
+
+<!-- 
+-->
+
+same thing we need to do in second file
+
+vim /opt/tomcat/webapps/manager/META-INF/context.xml
+
+Now we need to restart our tomcat services,,,
+
+cd /opt/tomcat/bin/
+./shutdown.sh
+./startup.sh
+
+and refresh the browser ->> now go to the manager app it should ask for the credentials.
+
+now for the credentials,,
+
+cd /opt/tomcat/conf/
+ls -l tomcat-users.xml
+
+and update according to below link,
+
+https://github.com/yankils/Simple-DevOps-Project/blob/master/Tomcat/tomcat_installation.MD
+
+ <role rolename="manager-gui"/>
+ <role rolename="manager-script"/>
+ <role rolename="manager-jmx"/>
+ <role rolename="manager-status"/>
+ <user username="admin" password="admin" roles="manager-gui, manager-script, manager-jmx, manager-status"/>
+ <user username="deployer" password="deployer" roles="manager-script"/>
+ <user username="tomcat" password="s3cret" roles="manager-gui"/>
+
+after editibg the file.
+
+create the link,,
+
+ln -s /opt/tomcat/bin/startup.sh /usr/local/bin/tomcatup
+
+ln -s /opt/tomcat/bin/shutdown.sh /usr/local/bin/tomcatdown
+
+tomcatdown
+tomcatup
+
+Integrate Tomcat with Jenkins:
+------------------------------
+
+- For tomcat we need to install Plugins -> "Deploy to container", by using this plugin we can deploy in tomcat server.
+- We need to configure tomcat server with Credentials.
+
+to install plugins.
+Manage Jenkins -> Manage Plugins -> Available (search -> deploy to contauner) install without restart.
+
+to manage credentials.
+Manage Jenkins -> (in security section) Manage Credentials -> jenkins -> global credentials(unrestricted) -> Add Crendtials
+
+Username : deployer
+Password : redhat
+ID : tomcat_deployer
+Description :  tomcat_deployer
+OK.
+
+Now create a new job for tomcat deployment.
+
+BuildandDeployJob - Maven project
+
+Des :- Build code with help of maven and deploy it on tomcat server.
+
+Git
+helloworld url
+https://github.com/HifRehman/hello-world.git
+
+Goals and options
+clean install 
+
+Post-build action
+|
+deploy war/ear to a container
+
+WAR/EAR files
+"**/*.war" -> do not use this
+**/*.war -> use ths
+
+
+Context path -> leave blank 
+
+Add container
+Tomcat 8.xx
+
+tomcat URL
+http://192.168.30.142:8080/
+
+Apply & Save
+
+Deploy Artifacts on a Tomcat Server:
+-----------------------------------
+
+clone hello world to local machine
+
+git clone https://github.com/HifRehman/hello-world.git
+
+cd hello-world/
+cd webapp/src/main/webapp
+vim index.jsp
+
+google -> form filling html code.
+
+from w3school copy and paste in index.jsp
+
+git status
+git add .
+git status
+git commit -m "updated index.jsp file"
+git push origin master
+
+you can learn -> personal access token
+
+git account :- HifRehman
+Token :- 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
+
+Automate Build and deploy using poll SCM:
+-----------------------------------------
+
+go to the existing job -> configure
+
+in Build Triggers options
+
+Build whenever a SNAPSHOT dependency is build -->> Manual Build
+
+Build periodically -> irrespectic of changes it will build the job
+
+Poll SCM -->> peridically it will check if there is some code change if there is it will run the job
+
+* * * * *
+
+change the code again 
+
+vim index.jsp
+
+change some here and push the code.
+
+Integrating Docker in CI/CD Pipeline:
+====================================
+
+git -> GitHub -> Jenkins -> Docker
+
+setup docker host,,,
+
+- setup a linux instance
+- install docker
+- start docker services
+
+yum install docker 
+systemctl start docker
+systemctl enable docker
+
+docker images
+docker ps
+docker ps -a
+
+Create a tomcat container,,,
+
+docker pull tomcat
+docker images
+docker run -d --name tomcat-container -p 8081:8080 tomcat
+
+HTTP status 404 - Not found -->> known issue after tomcat 9 in the docker image.
+
+to fix the issue need to go inside the docker container,,,
+
+docker exec -it tomcat-container /bin/bash
+
+whenever trying to access from the browser it looks inside the webapps directory but it is empty,,
+
+cd webapps/
+ls
+
+but in webapps.dist -> keeps all the information 
+
+cd webapps.dist
+ls
+all this contents needs to copy in the webapps directory,,
+
+cp -R * ../webapps
+
+now refresh the browser.
+
+Create DockerFile:
+=================
+
+FROM : To pull the base image
+RUN : To execute commands
+CMD : To provide defaults for an executing container
+ENTRYPOINT : To configure a container that will run as an executable
+WORKDIR : To sets the working directory
+COPY : To copy a directory from your local machine to the docker container
+ADD : To copy files and folders from your local machine to docker container
+EXPOSE : informs docker that the container listens on the specified network ports at runtime
+ENV : To set environment variables.
+
+
+RUN is an image build step, the state of the container after a RUN command will be committed to the container image. A Dockerfile can have many RUN steps that layer on top of one another to build the image. CMD is the command the container executes by default when you launch the built image
+
+ENTRYPOINT is also closely related to CMD and can modify the way a container is started from an image.
+
+Install tomcat on Centos:
+------------------------
+
+Pull centos from dockerhub 		- FROM
+Install Java		   		- RUN
+Create /opt/tomcat dir	   		- RUN
+Change work directory to /opt/tomcat 	- WORKDIR
+Download tomcat packages 		- ADD / RUN
+Extract tar.gz file 			- RUN
+Reaname to tomcat dir			- RUN 
+needs to open port 8080			- EXPOSE
+Start tomcat services			- CMD
+
+
+vim Dockerfile
+
+FROM centos:latest
+RUN yum install java -y
+RUN mkdir /opt/tomcat
+WORKDIR /opt/tomcat
+ADD https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.65/bin/apache-tomcat-9.0.65.tar.gz .
+RUN tar -xvzf apache-tomcat-9.0.65.tar.gz
+RUN mv apache-tomcat-9.0.65 tomcat
+EXPOSE 8080
+CMD ["/opt/tomcat/bin/catalina.sh", "run"] 
+
+wq!
+
+docker build -t mytomcat .
+
+docker run -d --name mytomcat-server -p 8085:8080 mytomcat
+
+
+Create a customized Dockerfile for Tomcat:
+=========================================
+
+vim Dockerfile
+
+FROM tomcat:latest
+RUN cp -R /usr/local/tomcat/webapps.dist/* /usr/local/tomcat/webapps
+
+wq!
+
+docker build -t demotomcat .
+
+docker images
+
+docker run -d --name demotomcat-container -p 8085:8080 demotomcat
+
+Integrate Docker with Jenkins:
+=============================
+
+- Create a dockeradmin user
+- Install "Publish over ssh" plugin
+- Add dockerhost to jenkins "configure system"
+
+useradd dockeradmin
+passwd dockeradmin
+redhat
+
+usermod -aG docker dockeradmin
+
+In EC2 machine specific
+
+vim /etc/ssh/sshd_config
+
+PasswordAuthentication yes
+#PasswordAuthentication no
+
+service sshd restart
+
+
+Now login to Jenkin server:
+--------------------------
+
+Manage Jenkins -> Manage Plugins -> Available (publish over ssh) -> install without restart
+
+Manage Jenkins -> Configure system -> Publish over ssh 
+Add SSH server
+
+Name : dockerhost
+Hostaname : 192.168.30.142
+Username : dockeradmin
+Advance (provide the password)
+use password based authentication 
+Password :
+test configuration -> click on
+
+Apply and Save
+
+Jenkins job to build and copy artifacts on to dockerhost:
+---------------------------------------------------------
+
+new job -> BuildandDeployonContainer ->copy from buildanddeployjob
+
+Deploy war/ear container -> delete this from the existing job
+
+Add [post build actions]
+
+Send build artifcats over ssh
+
+whatever ssh server we have added it will show over there,,,
+
+Source file,, 
+
+
+
