@@ -282,9 +282,6 @@ git push origin master
 
 you can learn -> personal access token
 
-git account :- HifRehman
-Token :- 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
-
 Automate Build and deploy using poll SCM:
 -----------------------------------------
 
